@@ -1,30 +1,19 @@
-import asyncio
-import json
-import websockets
-from feeds.shared import PRICES, COINS
+import requests
 
-COINBASE_WS = "wss://ws-feed.exchange.coinbase.com"
+COINBASE_URL = "https://api.exchange.coinbase.com/products"
 
-async def coinbase_ws():
-    while True:
-        try:
-            async with websockets.connect(COINBASE_WS, ping_interval=20) as ws:
-                subscribe = {
-                    "type": "subscribe",
-                    "channels": [{
-                        "name": "ticker",
-                        "product_ids": [f"{c}-USD" for c in COINS]
-                    }]
-                }
-                await ws.send(json.dumps(subscribe))
+def get_coinbase_prices():
+    prices = {}
+    try:
+        products = requests.get(COINBASE_URL, timeout=10).json()
+        usd_pairs = [p["id"] for p in products if p["quote_currency"] == "USD"]
 
-                async for msg in ws:
-                    data = json.loads(msg)
-                    if data.get("type") == "ticker":
-                        coin = data["product_id"].split("-")[0]
-                        price = float(data["price"])
-                        PRICES.setdefault(coin, {})["coinbase"] = price
+        for pair in usd_pairs:
+            r = requests.get(f"{COINBASE_URL}/{pair}/ticker", timeout=5).json()
+            coin = pair.split("-")[0]
+            prices[coin] = float(r["price"])
 
-        except Exception as e:
-            print("Coinbase WS error:", e)
-            await asyncio.sleep(5)
+    except Exception as e:
+        print("Coinbase error:", e)
+
+    return prices
