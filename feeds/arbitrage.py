@@ -1,31 +1,26 @@
-from feeds.shared import PRICES
 from feeds.config import FEES
 
-def find_arbitrage():
-    opportunities = []
+def find_arbitrage(coin, prices):
+    if len(prices) < 2:
+        return None
 
-    for coin, exchanges in PRICES.items():
-        if len(exchanges) < 2:
-            continue
+    buy_ex = min(prices, key=prices.get)
+    sell_ex = max(prices, key=prices.get)
 
-        buy_ex, buy_price = min(exchanges.items(), key=lambda x: x[1])
-        sell_ex, sell_price = max(exchanges.items(), key=lambda x: x[1])
+    buy_price = prices[buy_ex]
+    sell_price = prices[sell_ex]
 
-        if buy_price <= 0:
-            continue
+    gross = sell_price - buy_price
+    net = gross - (buy_price * FEES[buy_ex]) - (sell_price * FEES[sell_ex])
 
-        gross_pct = (sell_price - buy_price) / buy_price * 100
-        fee_pct = (FEES.get(buy_ex, 0) + FEES.get(sell_ex, 0)) * 100
-        net_pct = gross_pct - fee_pct
+    if net <= 0:
+        return None
 
-        if net_pct > 0:
-            opportunities.append({
-                "Coin": coin,
-                "Buy @": buy_ex,
-                "Buy Price": round(buy_price, 4),
-                "Sell @": sell_ex,
-                "Sell Price": round(sell_price, 4),
-                "Net Profit %": round(net_pct, 3)
-            })
-
-    return sorted(opportunities, key=lambda x: x["Net Profit %"], reverse=True)
+    return {
+        "coin": coin,
+        "buy_from": buy_ex,
+        "sell_to": sell_ex,
+        "buy_price": round(buy_price, 2),
+        "sell_price": round(sell_price, 2),
+        "net_profit": round(net, 2)
+    }
