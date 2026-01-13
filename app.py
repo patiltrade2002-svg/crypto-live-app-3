@@ -1,74 +1,44 @@
-import streamlit as st
-import threading
 import asyncio
-import time
+import streamlit as st
+import pandas as pd
 
-from feeds.shared import PRICES
-from feeds.coinbase import run_coinbase
-from feeds.kraken import run_kraken
+from feeds.shared import PRICES, COINS
+from feeds.coinbase import coinbase_ws
+from feeds.kraken import kraken_ws
 from feeds.arbitrage import find_arbitrage
 
-# --------------------------------------------------
-# Start WebSocket feeds ONLY ONCE
-# --------------------------------------------------
-if "feeds_started" not in st.session_state:
-    st.session_state.feeds_started = True
+st.set_page_config(page_title="Crypto Arbitrage", layout="wide")
+st.title("⚡ Live Crypto Arbitrage Scanner")
 
-    def start_feed(coro):
-        asyncio.run(coro())
+# ---- Start background websocket tasks ONCE ----
+@st.cache_resource
+def start_ws_tasks():
+    loop = asyncio.get_event_loop()
+    loop.create_task(coinbase_ws())
+    loop.create_task(kraken_ws())
 
-    threading.Thread(
-        target=start_feed,
-        args=(run_coinbase,),
-        daemon=True
-    ).start()
+start_ws_tasks()
 
-    threading.Thread(
-        target=start_feed,
-        args=(run_kraken,),
-        daemon=True
-    ).start()
+# ---- UI Refresh ----
+st.caption("Live prices from Coinbase & Kraken (WebSockets)")
 
-# --------------------------------------------------
-# Streamlit UI
-# --------------------------------------------------
-st.set_page_config(
-    page_title="Live Crypto Arbitrage Scanner",
-    layout="wide"
-)
+rows = []
 
-st.title("⚡ Live Multi-Exchange Arbitrage Scanner")
-st.caption("Coinbase + Kraken • Auto-refresh every second")
+for coin in COINS:
+    prices = PRICES.get(coin)
+    if not prices or len(prices) < 2:
+        continue
 
-# --------------------------------------------------
-# Live Prices
-# --------------------------------------------------
-st.subheader("📊 Live Prices")
+    result = find_arbitrage(coin, prices)
+    if result:
+        rows.append(result)
 
-price_rows = []
-for coin, exchanges in PRICES.items():
-    row = {"Coin": coin}
-    row.update(exchanges)
-    price_rows.append(row)
-
-if price_rows and any(len(v) > 0 for v in PRICES.values()):
-    st.table(price_rows)
+if rows:
+    df = pd.DataFrame(rows).sort_values("net_profit", ascending=False)
+    st.dataframe(df, use_container_width=True)
 else:
-    st.info("Waiting for live price feeds…")
+    st.info("Waiting for live price data...")
 
-# --------------------------------------------------
-# Arbitrage Opportunities
-# --------------------------------------------------
-st.subheader("💰 Arbitrage Opportunities")
-
-arbs = find_arbitrage()
-if arbs:
-    st.table(arbs)
-else:
-    st.info("No profitable arbitrage detected yet")
-
-# --------------------------------------------------
-# Auto refresh (Streamlit-safe)
-# --------------------------------------------------
-time.sleep(1)
+# auto-refresh
+st.sleep(2)
 st.rerun()
