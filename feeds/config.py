@@ -1,3 +1,10 @@
+# feeds/config.py
+
+# Trading fees (approximate taker fees)
+FEES = {
+    "coinbase": 0.006,   # 0.6%
+    "kraken": 0.004,     # 0.4%
+}
 COINS = {
     # Coinbase + Kraken confirmed
     "BTC":  {"coinbase": "BTC-USD",  "kraken": "XBT/USD"},
