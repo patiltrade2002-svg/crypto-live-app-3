@@ -1,37 +1,31 @@
-import asyncio
+import time
 import streamlit as st
 import pandas as pd
-import time 
 
-from feeds.shared import PRICES, COINS
-from feeds.coinbase import coinbase_ws
-from feeds.kraken import kraken_ws
+from feeds.shared import COINS
+from feeds.coinbase import get_coinbase_prices
+from feeds.kraken import get_kraken_prices
 from feeds.arbitrage import find_arbitrage
 
-st.set_page_config(page_title="Crypto Arbitrage", layout="wide")
-st.title("⚡ Live Crypto Arbitrage Scanner")
+st.set_page_config(page_title="Crypto Arbitrage Scanner", layout="wide")
+st.title("⚡ Live Crypto Arbitrage Scanner (REST)")
 
-# ---- Start background websocket tasks ONCE ----
-@st.cache_resource
-def start_ws_tasks():
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+st.caption("Coinbase + Kraken | REST polling (stable & fast)")
 
-    loop.create_task(coinbase_ws())
-    loop.create_task(kraken_ws())
-
-start_ws_tasks()
-# ---- UI Refresh ----
-st.caption("Live prices from Coinbase & Kraken (WebSockets)")
+# ---- Fetch prices ----
+coinbase_prices = get_coinbase_prices()
+kraken_prices = get_kraken_prices()
 
 rows = []
 
 for coin in COINS:
-    prices = PRICES.get(coin)
-    if not prices or len(prices) < 2:
+    prices = {}
+    if coin in coinbase_prices:
+        prices["coinbase"] = coinbase_prices[coin]
+    if coin in kraken_prices:
+        prices["kraken"] = kraken_prices[coin]
+
+    if len(prices) < 2:
         continue
 
     result = find_arbitrage(coin, prices)
@@ -42,9 +36,8 @@ if rows:
     df = pd.DataFrame(rows).sort_values("net_profit", ascending=False)
     st.dataframe(df, use_container_width=True)
 else:
-    st.info("Waiting for live price data...")
+    st.info("No profitable arbitrage right now")
 
-# auto-refresh
-
+# ---- Refresh ----
 time.sleep(2)
 st.rerun()
