@@ -13,12 +13,16 @@ st.title("⚡ Live Crypto Arbitrage Scanner")
 # ---- Start background websocket tasks ONCE ----
 @st.cache_resource
 def start_ws_tasks():
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
     loop.create_task(coinbase_ws())
     loop.create_task(kraken_ws())
 
 start_ws_tasks()
-
 # ---- UI Refresh ----
 st.caption("Live prices from Coinbase & Kraken (WebSockets)")
 
