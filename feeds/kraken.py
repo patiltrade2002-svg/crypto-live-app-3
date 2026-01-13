@@ -1,31 +1,26 @@
-import asyncio
-import json
-import websockets
-from feeds.shared import PRICES, COINS
+import requests
 
-KRAKEN_WS = "wss://ws.kraken.com"
+KRAKEN_URL = "https://api.kraken.com/0/public/Ticker"
 
-PAIR_MAP = {c: f"{c}/USD" for c in COINS}
+def get_kraken_prices():
+    prices = {}
+    try:
+        pairs = {
+            "BTC": "XBTUSD", "ETH": "ETHUSD", "SOL": "SOLUSD", "ADA": "ADAUSD",
+            "XRP": "XRPUSD", "DOGE": "DOGEUSD", "AVAX": "AVAXUSD", "DOT": "DOTUSD",
+            "LINK": "LINKUSD", "MATIC": "MATICUSD", "ATOM": "ATOMUSD", "UNI": "UNIUSD",
+            "LTC": "LTCUSD", "BCH": "BCHUSD", "TRX": "TRXUSD", "ICP": "ICPUSD",
+            "FIL": "FILUSD", "NEAR": "NEARUSD", "APT": "APTUSD", "OP": "OPUSD"
+        }
 
-async def kraken_ws():
-    while True:
-        try:
-            async with websockets.connect(KRAKEN_WS, ping_interval=20) as ws:
-                subscribe = {
-                    "event": "subscribe",
-                    "pair": list(PAIR_MAP.values()),
-                    "subscription": {"name": "ticker"}
-                }
-                await ws.send(json.dumps(subscribe))
+        query = ",".join(pairs.values())
+        r = requests.get(f"{KRAKEN_URL}?pair={query}", timeout=10).json()
 
-                async for msg in ws:
-                    data = json.loads(msg)
-                    if isinstance(data, list):
-                        pair = data[-1]
-                        coin = pair.split("/")[0]
-                        price = float(data[1]["c"][0])
-                        PRICES.setdefault(coin, {})["kraken"] = price
+        for coin, pair in pairs.items():
+            if pair in r["result"]:
+                prices[coin] = float(r["result"][pair]["c"][0])
 
-        except Exception as e:
-            print("Kraken WS error:", e)
-            await asyncio.sleep(5)
+    except Exception as e:
+        print("Kraken error:", e)
+
+    return prices
