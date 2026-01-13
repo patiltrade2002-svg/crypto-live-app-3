@@ -1,9 +1,6 @@
 from feeds.config import FEES
 
 def find_arbitrage(coin, prices):
-    if len(prices) < 2:
-        return None
-
     buy_ex = min(prices, key=prices.get)
     sell_ex = max(prices, key=prices.get)
 
@@ -22,5 +19,5 @@ def find_arbitrage(coin, prices):
         "sell_to": sell_ex,
         "buy_price": round(buy_price, 2),
         "sell_price": round(sell_price, 2),
-        "net_profit": round(net, 2)
+        "net_profit": round(net, 2),
     }
