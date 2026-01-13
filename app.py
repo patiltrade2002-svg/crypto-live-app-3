@@ -16,7 +16,22 @@ st.caption("Coinbase + Kraken | REST polling (stable & fast)")
 coinbase_prices = get_coinbase_prices()
 kraken_prices = get_kraken_prices()
 
-rows = []
+# ---- SHOW RAW PRICES (IMPORTANT) ----
+price_rows = []
+
+for coin in COINS:
+    price_rows.append({
+        "coin": coin,
+        "coinbase": coinbase_prices.get(coin),
+        "kraken": kraken_prices.get(coin),
+    })
+
+price_df = pd.DataFrame(price_rows)
+st.subheader("📊 Live Prices")
+st.dataframe(price_df, use_container_width=True)
+
+# ---- Arbitrage ----
+arb_rows = []
 
 for coin in COINS:
     prices = {}
@@ -30,13 +45,15 @@ for coin in COINS:
 
     result = find_arbitrage(coin, prices)
     if result:
-        rows.append(result)
+        arb_rows.append(result)
 
-if rows:
-    df = pd.DataFrame(rows).sort_values("net_profit", ascending=False)
-    st.dataframe(df, use_container_width=True)
+st.subheader("💰 Arbitrage Opportunities")
+
+if arb_rows:
+    arb_df = pd.DataFrame(arb_rows).sort_values("net_profit", ascending=False)
+    st.dataframe(arb_df, use_container_width=True)
 else:
-    st.info("No profitable arbitrage right now")
+    st.info("No profitable arbitrage after fees")
 
 # ---- Refresh ----
 time.sleep(2)
