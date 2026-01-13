@@ -1,32 +1,35 @@
+# feeds/coinbase.py
+
+import asyncio
 import json
 import websockets
-from feeds.shared import PRICES
+from feeds.shared import PRICES, COINS
 
-PRODUCTS = {
-    "BTC-USD": "BTC",
-    "ETH-USD": "ETH",
-    "SOL-USD": "SOL",
-    "ADA-USD": "ADA",
-    "XRP-USD": "XRP",
-    "DOGE-USD": "DOGE",
-    "LINK-USD": "LINK",
-    "AVAX-USD": "AVAX",
-    "MATIC-USD": "MATIC",
-    "DOT-USD": "DOT",
-}
+COINBASE_WS = "wss://ws-feed.exchange.coinbase.com"
 
-async def run_coinbase():
-    uri = "wss://ws-feed.exchange.coinbase.com"
+async def coinbase_ws():
+    while True:
+        try:
+            async with websockets.connect(COINBASE_WS, ping_interval=20) as ws:
+                subscribe_msg = {
+                    "type": "subscribe",
+                    "channels": [{
+                        "name": "ticker",
+                        "product_ids": [f"{c}-USD" for c in COINS]
+                    }]
+                }
+                await ws.send(json.dumps(subscribe_msg))
 
-    async with websockets.connect(uri) as ws:
-        await ws.send(json.dumps({
-            "type": "subscribe",
-            "channels": [{"name": "ticker", "product_ids": list(PRODUCTS)}]
-        }))
+                async for msg in ws:
+                    data = json.loads(msg)
+                    if data.get("type") == "ticker":
+                        product = data["product_id"]  # BTC-USD
+                        coin = product.split("-")[0]
+                        price = float(data["price"])
 
-        while True:
-            msg = json.loads(await ws.recv())
-            if msg.get("type") == "ticker":
-                coin = PRODUCTS.get(msg["product_id"])
-                if coin:
-                    PRICES[coin]["Coinbase"] = float(msg["price"])
+                        PRICES.setdefault(coin, {})["coinbase"] = price
+
+        except Exception as e:
+            print("Coinbase WS error:", e)
+            await asyncio.sleep(5)
+
