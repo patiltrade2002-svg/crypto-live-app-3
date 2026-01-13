@@ -1,6 +1,7 @@
 import asyncio
 import streamlit as st
 import pandas as pd
+import time 
 
 from feeds.shared import PRICES, COINS
 from feeds.coinbase import coinbase_ws
@@ -44,5 +45,6 @@ else:
     st.info("Waiting for live price data...")
 
 # auto-refresh
-st.sleep(2)
+
+time.sleep(2)
 st.rerun()
