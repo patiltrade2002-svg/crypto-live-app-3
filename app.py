@@ -71,4 +71,4 @@ else:
 # Auto refresh (Streamlit-safe)
 # --------------------------------------------------
 time.sleep(1)
-st.experimental_rerun()
+st.rerun()
